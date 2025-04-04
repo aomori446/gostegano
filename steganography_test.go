@@ -1,9 +1,13 @@
 package gostegano
 
 import (
+	"bytes"
 	"image"
 	"image/color"
 	"image/draw"
+	"image/png"
+	"io"
+	"os"
 	"testing"
 )
 
@@ -54,12 +58,6 @@ func TestEmbedByteInPixel(t *testing.T) {
 }
 
 func TestEmbedDataInImage(t *testing.T) {
-	makeBaseImage := func() *image.RGBA {
-		img := image.NewRGBA(image.Rect(0, 0, 256, 256))
-		draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{A: 255}}, image.Point{}, draw.Src)
-		return img
-	}
-
 	tests := []struct {
 		name    string
 		input   image.Image
@@ -102,6 +100,12 @@ func TestEmbedDataInImage(t *testing.T) {
 	}
 }
 
+func makeBaseImage() *image.RGBA {
+	img := image.NewRGBA(image.Rect(0, 0, 256, 256))
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{A: 255}}, image.Point{}, draw.Src)
+	return img
+}
+
 func imagesEqual(img1, img2 image.Image) bool {
 	if !img1.Bounds().Eq(img2.Bounds()) {
 		return false
@@ -114,4 +118,84 @@ func imagesEqual(img1, img2 image.Image) bool {
 		}
 	}
 	return true
+}
+
+func TestSaveEncodedImage(t *testing.T) {
+	validData := []byte("hello, world!")
+
+	tests := []struct {
+		name    string
+		setup   func() (io.Reader, string) // returns reader and filename
+		data    []byte
+		wantErr bool
+	}{
+		{
+			name: "Valid PNG embedding",
+			setup: func() (io.Reader, string) {
+				img := makeBaseImage()
+				buf := new(bytes.Buffer)
+				_ = png.Encode(buf, img)
+				outFile, _ := os.CreateTemp("", "*.png")
+				defer outFile.Close()
+				return buf, outFile.Name()
+			},
+			data:    validData,
+			wantErr: false,
+		},
+		{
+			name: "Invalid output filename (not PNG)",
+			setup: func() (io.Reader, string) {
+				img := makeBaseImage()
+				buf := new(bytes.Buffer)
+				_ = png.Encode(buf, img)
+				return buf, "output.jpg"
+			},
+			data:    validData,
+			wantErr: true,
+		},
+		{
+			name: "Too much data to embed",
+			setup: func() (io.Reader, string) {
+				img := image.NewNRGBA(image.Rect(0, 0, 2, 2)) // only 4 pixels
+				buf := new(bytes.Buffer)
+				_ = png.Encode(buf, img)
+				outFile, _ := os.CreateTemp("", "*.png")
+				defer outFile.Close()
+				return buf, outFile.Name()
+			},
+			data:    make([]byte, 100), // too much for 4 pixels
+			wantErr: true,
+		},
+		{
+			name: "Empty filename",
+			setup: func() (io.Reader, string) {
+				img := makeBaseImage()
+				buf := new(bytes.Buffer)
+				_ = png.Encode(buf, img)
+				return buf, ""
+			},
+			data:    validData,
+			wantErr: true,
+		},
+		{
+			name: "Nil reader input",
+			setup: func() (io.Reader, string) {
+				outFile, _ := os.CreateTemp("", "*.png")
+				defer outFile.Close()
+				return nil, outFile.Name()
+			},
+			data:    validData,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reader, fileName := tt.setup()
+			err := SaveEncodedImage(reader, tt.data, fileName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SaveEncodedImage() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+		})
+	}
 }

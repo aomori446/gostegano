@@ -2,6 +2,7 @@ package gostegano
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -56,15 +57,18 @@ func EmbedDataInImage(img image.Image, data []byte) (image.Image, error) {
 
 // SaveEncodedImage 埋め込まれたデータをPNGファイルとして保存する
 func SaveEncodedImage(r io.Reader, data []byte, fileName string) error {
+	if r == nil {
+		return errors.New("input reader cannot be nil")
+	}
 	if fileName == "" || !strings.HasSuffix(fileName, ".png") {
-		return errors.New("出力ファイルは .png 形式でなければなりません")
+		return errors.New("output file must be a .png format")
 	}
 
 	reader := ToBufferedReader(r)
 	img, _, err := image.Decode(reader)
 	if err != nil {
 		if errors.Is(err, image.ErrFormat) {
-			return errors.New("対応していない画像フォーマットです")
+			return errors.New("unsupported image format")
 		}
 		return err
 	}
@@ -79,8 +83,8 @@ func SaveEncodedImage(r io.Reader, data []byte, fileName string) error {
 		return err
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			log.Fatal(err)
+		if cerr := f.Close(); cerr != nil {
+			log.Fatal(cerr)
 		}
 	}()
 
@@ -88,8 +92,8 @@ func SaveEncodedImage(r io.Reader, data []byte, fileName string) error {
 	return encoder.Encode(f, newImg)
 }
 
-// ピクセルからバイトデータを抽出する
-func extractByteFromPixel(c color.Color) byte {
+// ExtractByteFromPixel ピクセルからバイトデータを抽出する
+func ExtractByteFromPixel(c color.Color) byte {
 	r, g, b, _ := c.RGBA()
 	return (byte(r) << 6) | ((byte(g) << 3) & 0b00111000) | (byte(b) & 0b00000111)
 }
@@ -103,7 +107,7 @@ func ExtractDataFromImage(img image.Image) []byte {
 		if i >= len(decodedData) {
 			break
 		}
-		decodedData[i] = extractByteFromPixel(v)
+		decodedData[i] = ExtractByteFromPixel(v)
 	}
 
 	return decodedData[paddingSize:]
@@ -146,7 +150,7 @@ func GetEmbeddedDataSize(img image.Image) int {
 		if i >= paddingSize {
 			break
 		}
-		padding[i] = extractByteFromPixel(v)
+		padding[i] = ExtractByteFromPixel(v)
 	}
 	return int(binary.BigEndian.Uint32(padding))
 }
@@ -169,6 +173,9 @@ func OpenImageSource(s string) (io.ReadCloser, error) {
 
 // ToBufferedReader io.Reader を bufio.Reader に変換する
 func ToBufferedReader(r io.Reader) *bufio.Reader {
+	if r == nil {
+		return bufio.NewReader(bytes.NewReader(nil))
+	}
 	if reader, ok := r.(*bufio.Reader); ok {
 		return reader
 	}
