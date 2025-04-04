@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"io"
 	"iter"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -18,8 +19,8 @@ import (
 
 const paddingSize = 4
 
-// ピクセルにバイトデータを埋め込む
-func embedByteInPixel(c color.Color, data byte) color.NRGBA {
+// EmbedByteInPixel ピクセルにバイトデータを埋め込む
+func EmbedByteInPixel(c color.Color, data byte) color.NRGBA {
 	r, g, b, a := c.RGBA()
 
 	embeddedR := uint8(r&^0b11) | data>>6
@@ -47,7 +48,7 @@ func EmbedDataInImage(img image.Image, data []byte) (image.Image, error) {
 
 	for i, v := range data {
 		x, y := i%width, i/width%height
-		newImg.Set(x, y, embedByteInPixel(newImg.At(x, y), v))
+		newImg.Set(x, y, EmbedByteInPixel(newImg.At(x, y), v))
 	}
 
 	return newImg, nil
@@ -77,7 +78,11 @@ func SaveEncodedImage(r io.Reader, data []byte, fileName string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	encoder := png.Encoder{CompressionLevel: png.BestCompression}
 	return encoder.Encode(f, newImg)
