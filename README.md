@@ -1,4 +1,4 @@
-# StegoPNG 
+# gostegano 
 
 PNG画像にテキストメッセージを埋め込んだり、埋め込まれたメッセージを復号するための軽量なGo製ツールです。
 
@@ -12,9 +12,9 @@ PNG画像にテキストメッセージを埋め込んだり、埋め込まれ�
 ## インストール
 
 ```bash
-git clone https://github.com/your-username/stegopng.git
-cd stegopng
-go build -o stegopng
+git clone https://github.com/aomori446/gostegano.git
+cd gostegano
+go build -o gostegano
 ```
 
 ## 使用方法
@@ -22,7 +22,7 @@ go build -o stegopng
 ### メッセージを画像に埋め込む
 
 ```bash
-./stegopng -encode -source input.png -message "ひみつのメッセージ" -target output.png
+./gostegano -encode -source input.png -message "ひみつのメッセージ" -target output.png
 ```
 - encode：エンコードモードを有効化
 - source：元の画像（ローカルファイルまたはURL）
@@ -32,7 +32,7 @@ go build -o stegopng
 ### 画像からメッセージを抽出する
 
 ```bash
-./stegopng -decode -source output.png
+./gostegano -decode -source output.png
 ```
 
 - decode：デコードモードを有効化
@@ -40,8 +40,8 @@ go build -o stegopng
 
 ### オプション：使用後に元ファイルを削除
 ```bash
-./stegopng -encode -source input.png -message "ひみつのメッセージ" -target output.png -rf
-./stegopng -decode -source output.png -rf
+./gostegano -encode -source input.png -message "ひみつのメッセージ" -target output.png -rf
+./gostegano -decode -source output.png -rf
 ```
 
 ## ライセンス
