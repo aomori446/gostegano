@@ -44,7 +44,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer rc.Close()
+	defer func() {
+		if err := rc.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	switch {
 	case decodeMode:
