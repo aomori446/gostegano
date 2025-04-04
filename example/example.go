@@ -47,6 +47,7 @@ func main() {
 	defer func() {
 		if err := rc.Close(); err != nil {
 			log.Fatal(err)
+
 		}
 	}()
 
