@@ -45,4 +45,4 @@ go build -o stegopng
 ```
 
 ## ライセンス
-[MIT LICENSE]()
+[MIT LICENSE](https://github.com/aomori446/gostegano/blob/main/LICENSE)
