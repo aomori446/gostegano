@@ -1,8 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"flag"
+	"fmt"
 	"github.com/aomori446/gostegano"
+	"io"
+	"net/http"
+	"os"
 )
 
 var (
@@ -16,13 +21,13 @@ var (
 
 func init() {
 	flag.StringVar(&source, "source", "", "Specify the source URL or file path.")
-	flag.BoolVar(&removeAfterUse, "rm", false, "Delete the file after usage.")
+	flag.StringVar(&target, "target", "", "Target output file name.")
 
 	flag.BoolVar(&decodeMode, "decode", false, "Decode a PNG image.")
 	flag.BoolVar(&encodeMode, "encode", false, "Encode a message into an image.")
 
 	flag.StringVar(&message, "message", "", "Message to encode.")
-	flag.StringVar(&target, "target", "", "Target output file name.")
+	flag.BoolVar(&removeAfterUse, "rm", false, "Delete the file after usage.")
 
 	flag.Parse()
 }
@@ -38,4 +43,71 @@ func main() {
 		return
 	}
 
+	var reader io.Reader
+	switch {
+	case gostegano.IsSupportedImageFile(source):
+		f, err := os.Open(source)
+		if err != nil {
+			fmt.Printf("Failed to open file: %s\n", source)
+			return
+		}
+		defer f.Close()
+
+		bts, err := io.ReadAll(f)
+		if err != nil {
+			fmt.Printf("Failed to read file: %s\n", source)
+			return
+		}
+		reader = bytes.NewReader(bts)
+	case gostegano.IsValidImageURL(source):
+		resp, err := http.Get(source)
+		if err != nil || resp.StatusCode != 200 {
+			fmt.Printf("Failed to fetch image from URL: %s\n", source)
+			return
+		}
+		defer resp.Body.Close()
+
+		bts, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Printf("Failed to read response body from URL: %s\n", source)
+			return
+		}
+		reader = bytes.NewReader(bts)
+	}
+
+	transform, err := gostegano.NewSteganographyFromReader(reader)
+	if err != nil {
+		fmt.Printf("Failed to create Steganography from source: %v\n", err)
+		return
+	}
+
+	switch {
+	case decodeMode:
+		data, err := transform.Decode()
+		if err != nil {
+			fmt.Printf("Failed to decode image: %v\n", err)
+			return
+		}
+		fmt.Printf("Decoded message: %s\n", string(data))
+	case encodeMode:
+		if message == "" {
+			fmt.Println("Message to encode cannot be empty.")
+			return
+		}
+
+		if err = transform.Encode([]byte(message)).SaveToFile(target); err != nil {
+			fmt.Printf("Failed to save encoded image: %v\n", err)
+			return
+		}
+		fmt.Printf("Message encoded and saved to %s\n", target)
+	}
+
+	if removeAfterUse {
+		err = os.Remove(source)
+		if err != nil {
+			fmt.Printf("Failed to remove source file: %v\n", err)
+		} else {
+			fmt.Printf("Source file %s removed.\n", source)
+		}
+	}
 }

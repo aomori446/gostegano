@@ -77,7 +77,7 @@ func (s *Steganography) Encode(data []byte) EncodeResult {
 	if len(data)+headerSize > imageSize {
 		return EncodeResult{
 			image: nil,
-			err:   errors.New("data is too large to encode"),
+			Err:   errors.New("data is too large to encode"),
 		}
 	}
 	s.targetImage = image.NewNRGBA(s.sourceImage.Bounds())
@@ -97,7 +97,7 @@ func (s *Steganography) Encode(data []byte) EncodeResult {
 		s.targetImage.Set(x, y, s.encodePixel(pixel, encodedData[i]))
 	}
 
-	return EncodeResult{image: s.targetImage, err: nil}
+	return EncodeResult{image: s.targetImage, Err: nil}
 }
 
 func (s *Steganography) encodePixel(c color.Color, data byte) color.NRGBA {
@@ -112,12 +112,12 @@ func (s *Steganography) encodePixel(c color.Color, data byte) color.NRGBA {
 
 type EncodeResult struct {
 	image *image.NRGBA
-	err   error
+	Err   error
 }
 
 func (e EncodeResult) SaveToFile(fileName string) error {
-	if e.err != nil {
-		return e.err
+	if e.Err != nil {
+		return e.Err
 	}
 	file, err := os.Create(fileName)
 	if err != nil {
@@ -130,8 +130,8 @@ func (e EncodeResult) SaveToFile(fileName string) error {
 }
 
 func (e EncodeResult) ToReader() (io.Reader, error) {
-	if e.err != nil {
-		return nil, e.err
+	if e.Err != nil {
+		return nil, e.Err
 	}
 	buffer := new(bytes.Buffer)
 	encoder := png.Encoder{CompressionLevel: png.BestCompression}

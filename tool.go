@@ -1,13 +1,9 @@
 package gostegano
 
 import (
-	"bytes"
-	"fmt"
 	"image"
 	"image/color"
-	"io"
 	"iter"
-	"net/http"
 	"strings"
 )
 
@@ -37,23 +33,4 @@ func IsSupportedImageFile(s string) bool {
 
 func IsValidImageURL(s string) bool {
 	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
-}
-
-func FetchFrom(url string) (io.Reader, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("can not fetch picture from %s\n", url)
-	}
-
-	bts, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return bytes.NewReader(bts), nil
 }
