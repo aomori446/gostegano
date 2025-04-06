@@ -1,7 +1,6 @@
 package gostegano
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -9,19 +8,99 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	_ "image/gif"
+	_ "image/jpeg"
 	"image/png"
 	"io"
-	"iter"
-	"log"
-	"net/http"
 	"os"
-	"strings"
 )
 
-const paddingSize = 4
+const (
+	magicBytes = "GOST"
+	headerSize = 4 + len(magicBytes)
+)
 
-// EmbedByteInPixel ピクセルにバイトデータを埋め込む
-func EmbedByteInPixel(c color.Color, data byte) color.NRGBA {
+type Steganography struct {
+	sourceImage image.Image
+	targetImage *image.NRGBA // Only used in Encode mode
+}
+
+func NewSteganography(img image.Image) *Steganography {
+	return &Steganography{sourceImage: img}
+}
+
+func NewSteganographyFromReader(reader io.Reader) (*Steganography, error) {
+	img, _, err := image.Decode(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode image: %w", err)
+	}
+	return &Steganography{sourceImage: img}, nil
+}
+
+func (s *Steganography) Decode() ([]byte, error) {
+	header := make([]byte, headerSize)
+	for i, pixel := range IteratePixels(s.sourceImage) {
+		if i >= headerSize {
+			break
+		}
+		header[i] = s.decodePixel(pixel)
+	}
+	if string(header[:4]) != magicBytes {
+		return nil, fmt.Errorf("no embedded data found")
+	}
+	bodySize := int(binary.BigEndian.Uint32(header[4:]))
+	if bodySize > s.sourceImage.Bounds().Dx()*s.sourceImage.Bounds().Dy()-headerSize {
+		return nil, fmt.Errorf("invalid body size: %d", bodySize)
+	}
+
+	body := make([]byte, bodySize)
+	for i, pixel := range IteratePixels(s.sourceImage) {
+		if i >= headerSize+bodySize {
+			break
+		}
+		if i < headerSize {
+			continue
+		}
+		body[i-headerSize] = s.decodePixel(pixel)
+	}
+
+	return body, nil
+}
+
+func (s *Steganography) decodePixel(c color.Color) byte {
+	r, g, b, _ := c.RGBA()
+	return (byte(r) << 6) | ((byte(g) << 3) & 0b00111000) | (byte(b) & 0b00000111)
+}
+
+func (s *Steganography) Encode(data []byte) EncodeResult {
+	imageSize := s.sourceImage.Bounds().Dx() * s.sourceImage.Bounds().Dy()
+	if len(data)+headerSize > imageSize {
+		return EncodeResult{
+			image: nil,
+			err:   errors.New("data is too large to encode"),
+		}
+	}
+	s.targetImage = image.NewNRGBA(s.sourceImage.Bounds())
+	draw.Draw(s.targetImage, s.targetImage.Bounds(), s.sourceImage, s.sourceImage.Bounds().Min, draw.Src)
+
+	header := append([]byte(magicBytes), make([]byte, 4)...)
+	binary.BigEndian.PutUint32(header[4:], uint32(len(data)))
+	encodedData := append(header, data...)
+
+	for i, pixel := range IteratePixels(s.sourceImage) {
+		x := i % s.targetImage.Bounds().Dx()
+		y := i / s.targetImage.Bounds().Dx()
+
+		if i >= len(encodedData) {
+			break
+		}
+		s.targetImage.Set(x, y, s.encodePixel(pixel, encodedData[i]))
+	}
+
+	return EncodeResult{image: s.targetImage, err: nil}
+}
+
+func (s *Steganography) encodePixel(c color.Color, data byte) color.NRGBA {
 	r, g, b, a := c.RGBA()
 
 	embeddedR := uint8(r&^0b11) | data>>6
@@ -31,169 +110,34 @@ func EmbedByteInPixel(c color.Color, data byte) color.NRGBA {
 	return color.NRGBA{R: embeddedR, G: embeddedG, B: embeddedB, A: uint8(a)}
 }
 
-// EmbedDataInImage 画像にデータを埋め込む
-func EmbedDataInImage(img image.Image, data []byte) (image.Image, error) {
-	width, height := img.Bounds().Dx(), img.Bounds().Dy()
-
-	if !CanFitDataInImage(len(data), width*height) {
-		return nil, errors.New("データサイズが画像の容量を超えています")
-	}
-
-	newImg := image.NewNRGBA(img.Bounds())
-	draw.Draw(newImg, newImg.Bounds(), img, img.Bounds().Min, draw.Src)
-
-	// データサイズを先頭4バイトに格納する
-	padding := make([]byte, paddingSize)
-	binary.BigEndian.PutUint32(padding, uint32(len(data)))
-	data = append(padding, data...)
-
-	for i, v := range data {
-		x, y := i%width, i/width%height
-		newImg.Set(x, y, EmbedByteInPixel(newImg.At(x, y), v))
-	}
-
-	return newImg, nil
+type EncodeResult struct {
+	image *image.NRGBA
+	err   error
 }
 
-// SaveEncodedImage 埋め込まれたデータをPNGファイルとして保存する
-func SaveEncodedImage(r io.Reader, data []byte, fileName string) error {
-	if r == nil {
-		return errors.New("input reader cannot be nil")
+func (e EncodeResult) SaveToFile(fileName string) error {
+	if e.err != nil {
+		return e.err
 	}
-	if fileName == "" || !strings.HasSuffix(fileName, ".png") {
-		return errors.New("output file must be a .png format")
-	}
-
-	reader := ToBufferedReader(r)
-	img, _, err := image.Decode(reader)
-	if err != nil {
-		if errors.Is(err, image.ErrFormat) {
-			return errors.New("unsupported image format")
-		}
-		return err
-	}
-
-	newImg, err := EmbedDataInImage(img, data)
+	file, err := os.Create(fileName)
 	if err != nil {
 		return err
 	}
-
-	f, err := os.Create(fileName)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if cerr := f.Close(); cerr != nil {
-			log.Fatal(cerr)
-		}
-	}()
+	defer file.Close()
 
 	encoder := png.Encoder{CompressionLevel: png.BestCompression}
-	return encoder.Encode(f, newImg)
+	return encoder.Encode(file, e.image)
 }
 
-// ExtractByteFromPixel ピクセルからバイトデータを抽出する
-func ExtractByteFromPixel(c color.Color) byte {
-	r, g, b, _ := c.RGBA()
-	return (byte(r) << 6) | ((byte(g) << 3) & 0b00111000) | (byte(b) & 0b00000111)
-}
-
-// ExtractDataFromImage 画像からデータを抽出する
-func ExtractDataFromImage(img image.Image) []byte {
-	dataSize := GetEmbeddedDataSize(img)
-
-	decodedData := make([]byte, paddingSize+dataSize)
-	for i, v := range IterateImagePixels(img) {
-		if i >= len(decodedData) {
-			break
-		}
-		decodedData[i] = ExtractByteFromPixel(v)
+func (e EncodeResult) ToReader() (io.Reader, error) {
+	if e.err != nil {
+		return nil, e.err
 	}
-
-	return decodedData[paddingSize:]
-}
-
-// ReadAndExtractData Reader からデータを抽出する
-func ReadAndExtractData(r io.Reader) ([]byte, error) {
-	reader := ToBufferedReader(r)
-	img, err := png.Decode(reader)
+	buffer := new(bytes.Buffer)
+	encoder := png.Encoder{CompressionLevel: png.BestCompression}
+	err := encoder.Encode(buffer, e.image)
 	if err != nil {
 		return nil, err
 	}
-	return ExtractDataFromImage(img), nil
-}
-
-// CanFitDataInImage 画像にデータを埋め込めるか確認する
-func CanFitDataInImage(length, totalPixels int) bool {
-	return length > 0 && length <= totalPixels
-}
-
-// IterateImagePixels 画像のすべてのピクセルを走査する
-func IterateImagePixels(img image.Image) iter.Seq2[int, color.Color] {
-	return func(yield func(int, color.Color) bool) {
-		bounds := img.Bounds()
-		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-			for x := bounds.Min.X; x < bounds.Max.X; x++ {
-				index := x + y*bounds.Dx()
-				if !yield(index, img.At(x, y)) {
-					return
-				}
-			}
-		}
-	}
-}
-
-// GetEmbeddedDataSize 埋め込まれたデータのサイズを取得する
-func GetEmbeddedDataSize(img image.Image) int {
-	padding := make([]byte, paddingSize)
-	for i, v := range IterateImagePixels(img) {
-		if i >= paddingSize {
-			break
-		}
-		padding[i] = ExtractByteFromPixel(v)
-	}
-	return int(binary.BigEndian.Uint32(padding))
-}
-
-// OpenImageSource ファイルまたはURLを開く
-func OpenImageSource(s string) (io.ReadCloser, error) {
-	switch {
-	case IsValidImageURL(s):
-		resp, err := http.Get(s)
-		if err != nil || resp.StatusCode != 200 {
-			return nil, fmt.Errorf("%s を取得できません", s)
-		}
-		return resp.Body, nil
-	case IsSupportedImageFile(s):
-		return os.Open(s)
-	default:
-		return nil, errors.New("無効なファイルまたはURLです")
-	}
-}
-
-// ToBufferedReader io.Reader を bufio.Reader に変換する
-func ToBufferedReader(r io.Reader) *bufio.Reader {
-	if r == nil {
-		return bufio.NewReader(bytes.NewReader(nil))
-	}
-	if reader, ok := r.(*bufio.Reader); ok {
-		return reader
-	}
-	return bufio.NewReader(r)
-}
-
-// IsSupportedImageFile 画像ファイル形式を判定する
-func IsSupportedImageFile(s string) bool {
-	extensions := []string{".jpg", ".jpeg", ".png", ".gif"}
-	for _, ext := range extensions {
-		if strings.HasSuffix(s, ext) {
-			return true
-		}
-	}
-	return false
-}
-
-// IsValidImageURL URL かどうかを判定する
-func IsValidImageURL(s string) bool {
-	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
+	return buffer, nil
 }

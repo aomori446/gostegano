@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"github.com/aomori446/gostegano"
-	"log"
-	"os"
 )
 
 var (
@@ -40,34 +38,4 @@ func main() {
 		return
 	}
 
-	rc, err := gostegano.OpenImageSource(source)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		if err := rc.Close(); err != nil {
-			log.Fatal(err)
-
-		}
-	}()
-
-	switch {
-	case decodeMode:
-		decodedData, err := gostegano.ReadAndExtractData(rc)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Println("Decoded Data:", string(decodedData))
-
-	case encodeMode:
-		if err = gostegano.SaveEncodedImage(rc, []byte(message), target); err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	if removeAfterUse && gostegano.IsSupportedImageFile(source) {
-		if err = os.Remove(source); err != nil {
-			log.Fatal(err)
-		}
-	}
 }
