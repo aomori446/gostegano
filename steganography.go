@@ -43,7 +43,7 @@ func (s *Steganography) Decode() ([]byte, error) {
 		if i >= headerSize {
 			break
 		}
-		header[i] = s.decodePixel(pixel)
+		header[i] = decodePixel(pixel)
 	}
 	if string(header[:4]) != magicBytes {
 		return nil, fmt.Errorf("no embedded data found")
@@ -61,15 +61,10 @@ func (s *Steganography) Decode() ([]byte, error) {
 		if i < headerSize {
 			continue
 		}
-		body[i-headerSize] = s.decodePixel(pixel)
+		body[i-headerSize] = decodePixel(pixel)
 	}
 
 	return body, nil
-}
-
-func (s *Steganography) decodePixel(c color.Color) byte {
-	r, g, b, _ := c.RGBA()
-	return (byte(r) << 6) | ((byte(g) << 3) & 0b00111000) | (byte(b) & 0b00000111)
 }
 
 func (s *Steganography) Encode(data []byte) EncodeResult {
@@ -94,13 +89,18 @@ func (s *Steganography) Encode(data []byte) EncodeResult {
 		if i >= len(encodedData) {
 			break
 		}
-		s.targetImage.Set(x, y, s.encodePixel(pixel, encodedData[i]))
+		s.targetImage.Set(x, y, encodePixel(pixel, encodedData[i]))
 	}
 
 	return EncodeResult{image: s.targetImage, Err: nil}
 }
 
-func (s *Steganography) encodePixel(c color.Color, data byte) color.NRGBA {
+func decodePixel(c color.Color) byte {
+	r, g, b, _ := c.RGBA()
+	return (byte(r) << 6) | ((byte(g) << 3) & 0b00111000) | (byte(b) & 0b00000111)
+}
+
+func encodePixel(c color.Color, data byte) color.NRGBA {
 	r, g, b, a := c.RGBA()
 
 	embeddedR := uint8(r&^0b11) | data>>6
