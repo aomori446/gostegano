@@ -199,3 +199,41 @@ func TestSaveEncodedImage(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractByteFromPixel(t *testing.T) {
+	tests := []struct {
+		name string
+		c    color.Color
+		want byte
+	}{
+		{
+			name: "Extract 0xFF",
+			c:    color.NRGBA{R: 0b00000011, G: 0b00000111, B: 0b00000111, A: 255},
+			want: 0xFF, // 0b11111111
+		},
+		{
+			name: "Extract 0x00",
+			c:    color.NRGBA{R: 0b00000000, G: 0b00000000, B: 0b00000000, A: 255},
+			want: 0x00,
+		},
+		{
+			name: "Extract 0xAA",
+			c:    color.NRGBA{R: 0b00000010, G: 0b00000101, B: 0b00000010, A: 255},
+			want: 0xAA,
+		},
+		{
+			name: "From RGBA64",
+			c:    color.RGBA64{R: 0x0000 | 0b11, G: 0b00000111, B: 0b00000111, A: 0xFFFF},
+			want: 0xFF,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ExtractByteFromPixel(tt.c)
+			if got != tt.want {
+				t.Errorf("ExtractByteFromPixel() = %08b, want %08b", got, tt.want)
+			}
+		})
+	}
+}
