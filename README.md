@@ -2,10 +2,6 @@
 
 画像にテキストメッセージを埋め込んだり、埋め込まれたメッセージを復号するための軽量なGo製ツールです。
 
-```go
-go install github.com/aomori446/gostegano/example@latest
-```
-
 ## 機能
 
 - ✅ 画像にメッセージを埋め込む（ステガノグラフィ）
@@ -14,6 +10,11 @@ go install github.com/aomori446/gostegano/example@latest
 - ✅ 使用後にソースファイルを自動削除（オプション）
 
 ## インストール
+
+```go
+go install github.com/aomori446/gostegano/example@latest
+```
+### or
 
 ```bash
 git clone https://github.com/aomori446/gostegano.git
