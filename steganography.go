@@ -115,7 +115,7 @@ type EncodeResult struct {
 	Err   error
 }
 
-func (e EncodeResult) SaveToFile(fileName string) error {
+func (e EncodeResult) SaveToFile(fileName string, config ...png.CompressionLevel) error {
 	if e.Err != nil {
 		return e.Err
 	}
@@ -125,16 +125,23 @@ func (e EncodeResult) SaveToFile(fileName string) error {
 	}
 	defer file.Close()
 
-	encoder := png.Encoder{CompressionLevel: png.BestCompression}
+	encoder := png.Encoder{CompressionLevel: png.NoCompression}
+	if len(config) != 0 {
+		encoder.CompressionLevel = config[0]
+	}
 	return encoder.Encode(file, e.image)
 }
 
-func (e EncodeResult) ToReader() (io.Reader, error) {
+func (e EncodeResult) ToReader(config ...png.CompressionLevel) (io.Reader, error) {
 	if e.Err != nil {
 		return nil, e.Err
 	}
 	buffer := new(bytes.Buffer)
-	encoder := png.Encoder{CompressionLevel: png.BestCompression}
+	encoder := png.Encoder{CompressionLevel: png.NoCompression}
+	if len(config) != 0 {
+		encoder.CompressionLevel = config[0]
+	}
+
 	err := encoder.Encode(buffer, e.image)
 	if err != nil {
 		return nil, err

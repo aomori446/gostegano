@@ -79,6 +79,6 @@ func TestSteganography_Decode(t *testing.T) {
 		t.Fatalf("Decode failed: %v", err)
 	}
 	if string(decoded) != string(originalData) {
-		t.Errorf("Decoded data mismatch. Got: %s, Want: %s", string(decoded), string(originalData))
+		t.Errorf("Decoded data mismatched. Got: %s, Want: %s", string(decoded), string(originalData))
 	}
 }
