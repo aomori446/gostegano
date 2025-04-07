@@ -4,6 +4,8 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"image/png"
+	"os"
 	"testing"
 )
 
@@ -63,8 +65,26 @@ func TestSteganography_Decode(t *testing.T) {
 	sourceImage := image.NewRGBA(image.Rect(0, 0, width, height))
 	draw.Draw(sourceImage, sourceImage.Bounds(), &image.Uniform{C: color.NRGBA{A: 255}}, image.Point{}, draw.Src)
 
-	// Encode the data into the image
-	steg := NewSteganography(sourceImage)
+	f, err := os.CreateTemp("", "test_*.png")
+	if err != nil {
+		t.Errorf("Create Temp png file failed :%v", err)
+	}
+
+	if err = png.Encode(f, sourceImage); err != nil {
+		t.Fatalf("Encode failed: %v", err)
+	}
+	f.Close()
+
+	f1, err := os.Open(f.Name())
+	if err != nil {
+		t.Errorf("open file %s failed", f1.Name())
+	}
+	defer os.Remove(f1.Name())
+
+	steg, err := NewSteganographyFromReader(f1)
+	if err != nil {
+		t.Errorf("create steganography failed")
+	}
 	result := steg.Encode(originalData)
 	if result.Err != nil {
 		t.Fatalf("Encode failed: %v", result.Err)
@@ -80,5 +100,43 @@ func TestSteganography_Decode(t *testing.T) {
 	}
 	if string(decoded) != string(originalData) {
 		t.Errorf("Decoded data mismatched. Got: %s, Want: %s", string(decoded), string(originalData))
+	}
+}
+
+func TestDecodePixel(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    color.NRGBA
+		expected byte
+	}{
+		{
+			name:     "All zeros",
+			input:    color.NRGBA{R: 0b00000000, G: 0b00000000, B: 0b00000000, A: 255},
+			expected: 0b00000000,
+		},
+		{
+			name:     "Max value",
+			input:    color.NRGBA{R: 0b00000011, G: 0b00000111, B: 0b00000111, A: 255},
+			expected: 0b11111111,
+		},
+		{
+			name:     "Random middle value",
+			input:    color.NRGBA{R: 0b00000010, G: 0b00000101, B: 0b00000011, A: 255},
+			expected: 0b10101011,
+		},
+		{
+			name:     "Another pattern",
+			input:    color.NRGBA{R: 0b00000001, G: 0b00000011, B: 0b00000010, A: 255},
+			expected: 0b01011010,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := decodePixel(tt.input)
+			if got != tt.expected {
+				t.Errorf("decodePixel() = %08b, want %08b", got, tt.expected)
+			}
+		})
 	}
 }
