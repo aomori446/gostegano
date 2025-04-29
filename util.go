@@ -31,8 +31,6 @@ func getBodySize(sourceImage image.Image) (int, error) {
 		header[i] = decodePixel(pixel)
 	}
 
-	fmt.Println(header)
-
 	if string(header[:4]) != magicBytes {
 		return -1, fmt.Errorf("no embedded data found")
 	}
@@ -55,6 +53,14 @@ func newHeader(bodySize int) (header []byte) {
 	header = append([]byte(magicBytes), make([]byte, 4)...)
 	binary.BigEndian.PutUint32(header[4:], uint32(bodySize))
 	return
+}
+
+func readHeader(img image.Image) []byte {
+	header := make([]byte, headerSize)
+	for index, pixel := range iteratePixelN(img, headerSize) {
+		header[index] = decodePixel(pixel)
+	}
+	return header
 }
 
 func iteratePixel(img image.Image) iter.Seq2[int, color.Color] {
