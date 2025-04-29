@@ -31,6 +31,8 @@ func getBodySize(sourceImage image.Image) (int, error) {
 		header[i] = decodePixel(pixel)
 	}
 
+	fmt.Println(header)
+
 	if string(header[:4]) != magicBytes {
 		return -1, fmt.Errorf("no embedded data found")
 	}
