@@ -44,3 +44,7 @@ func (result *DecodeResult) SaveFile(fileName string) error {
 	_, err = result.WriteTo(f)
 	return err
 }
+
+func (result *DecodeResult) ToString() string {
+	return string(result.decodedData)
+}
