@@ -18,8 +18,8 @@ go install github.com/aomori446/gostegano/example@latest
 
 ```bash
 git clone https://github.com/aomori446/gostegano.git
-cd gostegano/example
-go build -o example
+cd gostegano/cmd
+go build -o cmd
 ```
 
 ## 使用方法
@@ -27,7 +27,7 @@ go build -o example
 ### メッセージを画像に埋め込む
 
 ```bash
-./example -encode -source input.png -message "ひみつのメッセージ" -target output.png
+./cmd -encode -source input.png -message "ひみつのメッセージ" -target output.png
 ```
 - encode：エンコードモードを有効化
 - source：元の画像（ローカルファイルまたはURL）
@@ -37,7 +37,7 @@ go build -o example
 ### 画像からメッセージを抽出する
 
 ```bash
-./example -decode -source output.png
+./cmd -decode -source output.png
 ```
 
 - decode：デコードモードを有効化
@@ -45,8 +45,8 @@ go build -o example
 
 ### オプション：使用後に元ファイルを削除
 ```bash
-./example -encode -source input.png -message "ひみつのメッセージ" -target output.png -rf
-./example -decode -source output.png -rf
+./cmd -encode -source input.png -message "ひみつのメッセージ" -target output.png -rf
+./cmd -decode -source output.png -rf
 ```
 
 ## ライセンス

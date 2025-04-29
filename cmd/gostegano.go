@@ -1,13 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"flag"
-	"fmt"
-	"github.com/aomori446/gostegano"
-	"io"
-	"net/http"
-	"os"
 )
 
 var (
@@ -32,7 +26,7 @@ func init() {
 	flag.Parse()
 }
 
-func main() {
+/*func main() {
 	if decodeMode == encodeMode {
 		flag.Usage()
 		return
@@ -110,4 +104,4 @@ func main() {
 			fmt.Printf("Source file %s removed.\n", source)
 		}
 	}
-}
+}*/

@@ -31,19 +31,19 @@ func TestSteganography_Encode(t *testing.T) {
 	}
 
 	wantResult := EncodeResult{
-		Err:   nil,
-		image: wantImage,
+		err:         nil,
+		targetImage: wantImage,
 	}
 
 	// Assertions
-	if !IsSameImage(result.image, wantResult.image) {
-		t.Errorf("Image output does not match expected image")
+	if !isSameImage(result.image, wantResult.targetImage) {
+		t.Errorf("Image output does not match expected targetImage")
 	}
 	if result.Err != nil {
 		t.Errorf("Unexpected error occurred: %v", result.Err)
 	}
-	if wantResult.Err != nil {
-		t.Errorf("Unexpected error in expected result: %v", wantResult.Err)
+	if wantResult.err != nil {
+		t.Errorf("Unexpected error in expected result: %v", wantResult.err)
 	}
 }
 
