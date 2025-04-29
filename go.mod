@@ -1,3 +1,3 @@
-module github.com/aomori446/gostegano
+module gostegano
 
 go 1.24

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/aomori446/gostegano"
+	"gostegano"
 	"io"
 	"net/http"
 	"os"
