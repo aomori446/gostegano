@@ -9,29 +9,6 @@ import (
 	"os"
 )
 
-func encode(sourceImage image.Image, body []byte) (*EncodeResult, error) {
-	if err := validatePayloadSize(sourceImage, body); err != nil {
-		return nil, err
-	}
-
-	targetImage := copyImage(sourceImage)
-
-	header := newHeader(len(body))
-	payload := append(header, body...)
-
-	for index, pixel := range iteratePixel(sourceImage) {
-		x := index % sourceImage.Bounds().Dx()
-		y := index / sourceImage.Bounds().Dx()
-
-		if index >= len(payload) {
-			break
-		}
-		targetImage.Set(x, y, encodePixel(pixel, payload[index]))
-	}
-
-	return &EncodeResult{targetImage: targetImage}, nil
-}
-
 func encodePixel(c color.Color, data byte) color.NRGBA {
 	r, g, b, a := c.RGBA()
 
@@ -44,19 +21,19 @@ func encodePixel(c color.Color, data byte) color.NRGBA {
 
 type EncodeResult struct {
 	targetImage *image.NRGBA
-	buffer      *bytes.Reader // 用來做 Read
+	buffer      *bytes.Reader
 }
 
 func (result *EncodeResult) Read(p []byte) (n int, err error) {
 	if result.buffer == nil {
-		if err = result.PrepareReader(); err != nil {
+		if err = result.prepareReader(); err != nil {
 			return 0, err
 		}
 	}
 	return result.buffer.Read(p)
 }
 
-func (result *EncodeResult) PrepareReader() error {
+func (result *EncodeResult) prepareReader() error {
 	var buf bytes.Buffer
 	err := png.Encode(&buf, result.targetImage)
 	if err != nil {

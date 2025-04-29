@@ -14,7 +14,7 @@ import (
 func validatePayloadSize(img image.Image, body []byte) error {
 	imageSize := img.Bounds().Dx() * img.Bounds().Dy()
 	if len(body)+headerSize > imageSize {
-		return errors.New("body is too large to encode into targetImage")
+		return errors.New("body is too large to Encode into targetImage")
 	}
 	return nil
 }

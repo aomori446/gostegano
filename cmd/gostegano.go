@@ -69,15 +69,15 @@ func init() {
 		reader = bytes.NewReader(bts)
 	}
 
-	transform, err := gostegano.NewSteganographyFromReader(reader)
+	stegano, err := gostegano.NewSteganoFromReader(reader)
 	if err != nil {
-		fmt.Printf("Failed to create Steganography from source: %v\n", err)
+		fmt.Printf("Failed to create Stegano from source: %v\n", err)
 		return
 	}
 
 	switch {
 	case decodeMode:
-		data, err := transform.Decode()
+		data, err := gostegano
 		if err != nil {
 			fmt.Printf("Failed to decode image: %v\n", err)
 			return
@@ -89,7 +89,7 @@ func init() {
 			return
 		}
 
-		if err = transform.Encode([]byte(message)).SaveToFile(target); err != nil {
+		if err = stegano.Encode([]byte(message)).SaveToFile(target); err != nil {
 			fmt.Printf("Failed to save encoded image: %v\n", err)
 			return
 		}
