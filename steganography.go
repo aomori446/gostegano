@@ -10,11 +10,27 @@ import (
 
 /*
 Header:
+
    +--------+-----------+
    | "GOST" | len(body) |
    +--------+-----------+
    |   4    |     4     |
    +--------+-----------+
+*/
+
+/*
+Process:
+
+"A.png".openFile().Decode() => originalImage
+
+originalImage.copy() => newImage
+
+newImage.At(x,y) => color.encodeColor(*data) => encodedColor
+
+newImage.Set(x,y,encodedColor).Encode().saveFile() => "A_copy.png"
+
+"A_copy.png".openFile().Decode() => newImage.At(x,y) => color.decodeColor() => *data
+
 */
 
 const (
@@ -23,37 +39,30 @@ const (
 )
 
 type Stegano struct {
-	sourceImage image.Image
-	targetImage *image.NRGBA // Only used in Encode mode
+	image image.Image
 }
 
 func NewStegano(sourceImage image.Image) *Stegano {
-	return &Stegano{sourceImage: sourceImage}
+	return &Stegano{image: sourceImage}
 }
 
 func NewSteganoFrom(reader io.Reader) (*Stegano, error) {
 	sourceImage, _, err := image.Decode(reader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to Decode targetImage: %w", err)
+		return nil, fmt.Errorf("failed to Decode image: %w", err)
 	}
-	return &Stegano{sourceImage: sourceImage}, nil
+	return &Stegano{image: sourceImage}, nil
 }
 
 func (s *Stegano) Decode() (result *DecodeResult, err error) {
-	bodySize, err := getBodySize(s.sourceImage)
+	bodySize, err := getBodySize(s.image)
 	if err != nil {
 		return
 	}
 
 	body := make([]byte, bodySize)
-	for index, pixel := range iteratePixel(s.sourceImage) {
-		if index >= headerSize+bodySize {
-			break
-		}
-		if index < headerSize {
-			continue
-		}
-		body[index-headerSize] = decodePixel(pixel)
+	for index, pixel := range iteratePixel(s.image, headerSize, headerSize+bodySize) {
+		body[index] = decodePixel(pixel)
 	}
 
 	return &DecodeResult{
@@ -62,24 +71,21 @@ func (s *Stegano) Decode() (result *DecodeResult, err error) {
 }
 
 func (s *Stegano) Encode(body []byte) (*EncodeResult, error) {
-	if err := validatePayloadSize(s.sourceImage, body); err != nil {
+	if err := validateBodySize(s.image, len(body)); err != nil {
 		return nil, err
 	}
 
-	targetImage := copyImage(s.sourceImage)
+	targetImage := copyImage(s.image)
 
-	header := newHeader(len(body))
-	payload := append(header, body...)
+	payload := loadPayload(body)
 
-	for index, pixel := range iteratePixel(s.sourceImage) {
-		x := index % s.sourceImage.Bounds().Dx()
-		y := index / s.sourceImage.Bounds().Dx()
+	for index, pixel := range iteratePixel(targetImage, 0, len(payload)) {
+		x := index % targetImage.Bounds().Dx()
+		y := index / targetImage.Bounds().Dx()
 
-		if index >= len(payload) {
-			break
-		}
-		targetImage.Set(x, y, encodePixel(pixel, payload[index]))
+		data := payload[index]
+		targetImage.Set(x, y, encodePixel(pixel, data))
 	}
 
-	return &EncodeResult{targetImage: targetImage}, nil
+	return &EncodeResult{image: targetImage}, nil
 }

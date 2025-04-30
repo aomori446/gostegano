@@ -46,7 +46,7 @@ func main() {
 		return
 	}
 
-	stegano, err := gostegano.NewSteganoFrom(reader)
+	ste, err := gostegano.NewSteganoFrom(reader)
 	if err != nil {
 		fmt.Printf("Failed to create Stegano from source: %v\n", err)
 		return
@@ -54,11 +54,12 @@ func main() {
 
 	switch {
 	case decodeMode:
-		result, err := stegano.Decode()
+		result, err := ste.Decode()
 		if err != nil {
 			fmt.Printf("Failed to decode image: %v\n", err)
 			return
 		}
+
 		fmt.Printf("Decoded message: %s\n", result.ToString())
 	case encodeMode:
 		if message == "" {
@@ -66,13 +67,18 @@ func main() {
 			return
 		}
 
-		result, err := stegano.Encode([]byte(message))
+		result, err := ste.Encode([]byte(message))
 		if err != nil {
 			fmt.Printf("Failed to encode image: %v\n", err)
+			return
 		}
-		result.SaveFile(target)
 
-		fmt.Printf("Message encoded and saved to %s\n", target)
+		if err = result.SaveFile(target); err != nil {
+			fmt.Printf("Failed to save %s : %v\n", target, err)
+			return
+		}
+
+		fmt.Printf("<%s> encoded and saved to %s\n", message, target)
 	}
 
 	if removeAfterUse {
@@ -86,20 +92,6 @@ func main() {
 			fmt.Printf("Source file %s removed.\n", source)
 		}
 	}
-}
-
-func IsSupportedImageFile(filename string) bool {
-	extensions := []string{".jpg", ".jpeg", ".png", ".gif"}
-	for _, ext := range extensions {
-		if strings.HasSuffix(filename, ext) {
-			return true
-		}
-	}
-	return false
-}
-
-func IsValidImageURL(s string) bool {
-	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }
 
 func FromSource(source string) (io.Reader, error) {
@@ -126,6 +118,20 @@ func FromSource(source string) (io.Reader, error) {
 	default:
 		return nil, errors.New("not a supported source format")
 	}
+}
+
+func IsSupportedImageFile(filename string) bool {
+	extensions := []string{".jpg", ".jpeg", ".png"}
+	for _, ext := range extensions {
+		if strings.HasSuffix(filename, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+func IsValidImageURL(s string) bool {
+	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }
 
 func RemoveSource(source string) error {

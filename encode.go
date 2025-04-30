@@ -9,19 +9,20 @@ import (
 	"os"
 )
 
-func encodePixel(c color.Color, data byte) color.NRGBA {
-	r, g, b, a := c.RGBA()
+func encodePixel(originalPixel color.Color, data byte) (encodedPixel color.NRGBA) {
+	r, g, b, a := originalPixel.RGBA()
 
-	embeddedR := uint8(r&^0b11) | data>>6
-	embeddedG := uint8(g&^0b111) | (data>>3)&0b111
-	embeddedB := uint8(b&^0b111) | data&0b111
+	encodedPixel.R = uint8(r&^0b11) | data>>6
+	encodedPixel.G = uint8(g&^0b111) | (data&^0b11000000)>>3
+	encodedPixel.B = uint8(b&^0b111) | (data &^ 0b11111000)
+	encodedPixel.A = uint8(a)
 
-	return color.NRGBA{R: embeddedR, G: embeddedG, B: embeddedB, A: uint8(a)}
+	return
 }
 
 type EncodeResult struct {
-	targetImage *image.NRGBA
-	buffer      *bytes.Reader
+	image  *image.NRGBA
+	buffer *bytes.Reader
 }
 
 func (result *EncodeResult) Read(p []byte) (n int, err error) {
@@ -35,7 +36,7 @@ func (result *EncodeResult) Read(p []byte) (n int, err error) {
 
 func (result *EncodeResult) prepareReader() error {
 	var buf bytes.Buffer
-	err := png.Encode(&buf, result.targetImage)
+	err := png.Encode(&buf, result.image)
 	if err != nil {
 		return err
 	}
@@ -45,7 +46,7 @@ func (result *EncodeResult) prepareReader() error {
 
 func (result *EncodeResult) WriteTo(w io.Writer) (n int64, err error) {
 	countingWriter := &byteCounter{Writer: w}
-	err = png.Encode(countingWriter, result.targetImage)
+	err = png.Encode(countingWriter, result.image)
 	if err != nil {
 		return 0, err
 	}

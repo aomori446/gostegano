@@ -2,24 +2,16 @@ package gostegano
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
 	"iter"
+	"slices"
 )
 
-func validatePayloadSize(img image.Image, body []byte) error {
-	imageSize := img.Bounds().Dx() * img.Bounds().Dy()
-	if len(body)+headerSize > imageSize {
-		return errors.New("body is too large to Encode into targetImage")
-	}
-	return nil
-}
-
 func validateBodySize(img image.Image, bodySize int) error {
-	if bodySize > img.Bounds().Dx()*img.Bounds().Dy()-headerSize {
+	if bodySize+headerSize > img.Bounds().Dx()*img.Bounds().Dy() {
 		return fmt.Errorf("invalid body size: %d", bodySize)
 	}
 	return nil
@@ -27,17 +19,17 @@ func validateBodySize(img image.Image, bodySize int) error {
 
 func getBodySize(sourceImage image.Image) (int, error) {
 	header := make([]byte, headerSize)
-	for i, pixel := range iteratePixelN(sourceImage, headerSize) {
-		header[i] = decodePixel(pixel)
+	for index, pixel := range iteratePixel(sourceImage, 0, headerSize) {
+		header[index] = decodePixel(pixel)
 	}
 
-	if string(header[:4]) != magicBytes {
-		return -1, fmt.Errorf("no embedded data found")
+	if !slices.Equal(header[:4], []byte(magicBytes)) {
+		return 0, fmt.Errorf("no embedded data found")
 	}
 
 	bodySize := int(binary.BigEndian.Uint32(header[4:]))
 	if err := validateBodySize(sourceImage, bodySize); err != nil {
-		return -1, err
+		return 0, err
 	}
 
 	return bodySize, nil
@@ -49,54 +41,32 @@ func copyImage(sourceImage image.Image) (targetImage *image.NRGBA) {
 	return
 }
 
-func newHeader(bodySize int) (header []byte) {
-	header = append([]byte(magicBytes), make([]byte, 4)...)
-	binary.BigEndian.PutUint32(header[4:], uint32(bodySize))
-	return
+func loadPayload(body []byte) (payload []byte) {
+	header := append([]byte(magicBytes), make([]byte, 4)...)
+	binary.BigEndian.PutUint32(header[4:], uint32(len(body)))
+	return append(header, body...)
 }
 
-func readHeader(img image.Image) []byte {
-	header := make([]byte, headerSize)
-	for index, pixel := range iteratePixelN(img, headerSize) {
-		header[index] = decodePixel(pixel)
-	}
-	return header
-}
-
-func iteratePixel(img image.Image) iter.Seq2[int, color.Color] {
+func iteratePixel(img image.Image, start, end int) iter.Seq2[int, color.Color] {
 	return func(yield func(int, color.Color) bool) {
-		bounds := img.Bounds()
-		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-			for x := bounds.Min.X; x < bounds.Max.X; x++ {
-				index := x + y*bounds.Dx()
-				if !yield(index, img.At(x, y)) {
-					return
-				}
-			}
-		}
-	}
-}
+		width := img.Bounds().Dx()
+		height := img.Bounds().Dy()
 
-func iteratePixelN(img image.Image, n int) iter.Seq2[int, color.Color] {
-	return func(yield func(int, color.Color) bool) {
-		bounds := img.Bounds()
-
-		if n > bounds.Dx()*bounds.Dy() {
-			n = bounds.Dx() * bounds.Dy()
+		if start < 0 || start > end || end > width*height {
+			return
 		}
 
-		count := 0
-		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-			for x := bounds.Min.X; x < bounds.Max.X; x++ {
-				if count >= n {
-					return
-				}
-				index := x + y*bounds.Dx()
-				if !yield(index, img.At(x, y)) {
-					return
-				}
-				count++
+		index := 0
+		for i := start; i < end; i++ {
+			x := i % width
+			y := i / width
+			if y >= height {
+				break
 			}
+			if !yield(index, img.At(x, y)) {
+				return
+			}
+			index++
 		}
 	}
 }

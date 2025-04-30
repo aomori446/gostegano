@@ -2,13 +2,14 @@ package gostegano
 
 import (
 	"image/color"
+	"math/rand"
 	"testing"
 )
 
 func TestDecodePixel(t *testing.T) {
 	tests := []struct {
 		name string
-		c    color.Color
+		c    color.NRGBA
 		want byte
 	}{
 		{
@@ -37,9 +38,9 @@ func TestDecodePixel(t *testing.T) {
 				R: 0xAA, // 10101010
 				G: 0xBB, // 10111011
 				B: 0xCC, // 11001100
-				A: 0xFF,
+				A: 0xDD,
 			},
-			want: decodePixel(color.NRGBA{R: 0xAA, G: 0xBB, B: 0xCC, A: 0xFF}),
+			want: decodePixel(color.NRGBA{R: 0xAA, G: 0xBB, B: 0xCC, A: 0xDD}),
 		},
 	}
 
@@ -50,5 +51,16 @@ func TestDecodePixel(t *testing.T) {
 				t.Errorf("decodePixel(%v): want %08b, got %08b", test.c, test.want, got)
 			}
 		})
+	}
+}
+
+func TestEncodeAndDecodePixel(t *testing.T) {
+	for data := range byte(0xFF) {
+		originalPixel := color.NRGBA{R: uint8(rand.Intn(0xFF)), G: uint8(rand.Intn(0xFF)), B: uint8(rand.Intn(0xFF)), A: uint8(rand.Intn(0xFF))}
+		encodedPixel := encodePixel(originalPixel, data)
+		decodedData := decodePixel(encodedPixel)
+		if decodedData != data {
+			t.Errorf("data = %d; originalPixel = %v; encodedPixel => %d; decodedData => %d\n", data, originalPixel, encodedPixel, decodedData)
+		}
 	}
 }

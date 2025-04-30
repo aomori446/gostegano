@@ -6,13 +6,24 @@ import (
 	"os"
 )
 
-func decodePixel(c color.Color) byte {
-	r, g, b, _ := c.RGBA()
-	return (byte(r) << 6) | ((byte(g) << 3) & 0b00111000) | (byte(b) & 0b00000111)
+func decodePixel(encodedPixel color.Color) (decodeData byte) {
+	switch c := encodedPixel.(type) {
+	case color.RGBA:
+		return (c.R << 6) | ((c.G &^ 0b11111000) << 3) | (c.B &^ 0b11111000)
+	case color.NRGBA:
+		return (c.R << 6) | ((c.G &^ 0b11111000) << 3) | (c.B &^ 0b11111000)
+	case color.RGBA64:
+		return (uint8(c.R) << 6) | ((uint8(c.G) &^ 0b11111000) << 3) | (uint8(c.B) &^ 0b11111000)
+	case color.NRGBA64:
+		return (uint8(c.R) << 6) | ((uint8(c.G) &^ 0b11111000) << 3) | (uint8(c.B) &^ 0b11111000)
+	default:
+		panic("not a support format.")
+	}
 }
 
 type DecodeResult struct {
 	decodedData []byte
+	header      []byte
 	readOffset  int
 }
 
