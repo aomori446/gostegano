@@ -1,17 +1,18 @@
-# gostegano 
+# gostegano
 
-画像にテキストメッセージを埋め込んだり、埋め込まれたメッセージを復号するための軽量なGo製ツールです。
+A lightweight steganography tool written in Go for embedding and extracting text messages in images.
 
-## 機能
+## Features
 
-- ✅ 画像にメッセージを埋め込む（ステガノグラフィ）
-- ✅ 埋め込まれたメッセージを抽出する
-- ✅ ファイルまたはURLから画像を読み込む
-- ✅ 使用後にソースファイルを自動削除（オプション）
+- ✅ Embed messages into images (steganography)
+- ✅ Extract embedded messages from images
+- ✅ Load images from local files or URLs
+- ✅ Optionally delete the source image after use
+- ✅ **Supports PNG, JPG, and JPEG formats**
 
-## インストール
+## Installation
 
-```go
+```bash
 go install github.com/aomori446/gostegano/cmd/gostegano@latest
 ```
 OR
@@ -22,32 +23,38 @@ cd gostegano/cmd/gostegano
 go build -o gostegano
 ```
 
-## 使用方法
+## Usage
 
-### メッセージを画像に埋め込む
+### Embed a message into an image
 
 ```bash
-./gostegano -en -from input.png -msg "ひみつのメッセージ" -to output.png
+./gostegano -en -from input.png -msg "Secret message" -to output.png
 ```
-- en：エンコードモードを有効化
-- from：元の画像（ローカルファイルまたはURL）
-- msg：埋め込むメッセージ
-- to：出力ファイル名
 
-### 画像からメッセージを抽出する
+- `-en`: Enable encode mode  
+- `-from`: Source image (local file or URL)  
+- `-msg`: Message to embed  
+- `-to`: Output image file  
+
+> ✅ **Supported input/output formats**: PNG, JPG, JPEG
+
+### Extract a message from an image
 
 ```bash
 ./gostegano -de -from output.png
 ```
 
-- de：デコードモードを有効化
-- from：メッセージが埋め込まれたPNG画像
+- `-de`: Enable decode mode  
+- `-from`: Image file with an embedded message  
 
-### オプション：使用後に元ファイルを削除
+### Optional: Remove the source file after processing
+
 ```bash
-./cmd -en -from input.png -msg "ひみつのメッセージ" -to output.png -rm
-./cmd -de -from output.png -rm
+./gostegano -en -from input.jpg -msg "Secret message" -to output.jpg -rm
+./gostegano -de -from output.jpg -rm
 ```
 
-## ライセンス
+## License
+
 [MIT LICENSE](https://github.com/aomori446/gostegano/blob/main/LICENSE)
+
