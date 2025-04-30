@@ -14,7 +14,7 @@
 ```go
 go install github.com/aomori446/gostegano/cmd/gostegano@latest
 ```
-### OR
+OR
 
 ```bash
 git clone https://github.com/aomori446/gostegano.git
